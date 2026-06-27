@@ -1,0 +1,773 @@
+PAYMENTLAB AI DEBUGGING & AUTO-CORRECTION ARCHITECTURE
+===============================================================================
+
+PURPOSE
+-------------------------------------------------------------------------------
+
+The goal is to allow users to edit payment integration code while ensuring:
+
+✓ Invalid code never reaches execution
+
+✓ Only valid payment configurations are executed
+
+✓ Users receive educational feedback
+
+✓ AI explains failures
+
+✓ AI suggests corrections
+
+✓ AI can auto-fix code
+
+✓ Sandbox remains secure
+
+The AI is NOT responsible for executing code.
+
+The AI acts as:
+
+- Code Reviewer
+- Integration Mentor
+- Debugging Assistant
+- Auto-Correction Engine
+
+The Mock Gateway remains the only execution engine.
+
+===============================================================================
+HIGH LEVEL FLOW
+===============================================================================
+
+User Edits Code
+
+↓
+
+Run Payment
+
+↓
+
+Syntax Validation
+
+↓
+
+Configuration Extraction
+
+↓
+
+Gateway Validation
+
+↓
+
+AI Review (only if errors exist)
+
+↓
+
+Error Explanation
+
+↓
+
+Suggested Fix
+
+↓
+
+User Applies Fix
+
+↓
+
+Validation Passes
+
+↓
+
+Simulation Executes
+
+↓
+
+Timeline Generated
+
+↓
+
+Webhook Generated
+
+↓
+
+Payment Completed
+
+===============================================================================
+IMPORTANT DESIGN PRINCIPLE
+===============================================================================
+
+Never execute user code.
+
+Instead:
+
+User Code
+     ↓
+Parse
+     ↓
+Extract Configuration
+     ↓
+Validate
+     ↓
+Run Internal Mock Gateway
+
+The simulation engine always executes trusted backend code.
+
+===============================================================================
+PHASE 1 — USER EDITS CODE
+===============================================================================
+
+Example:
+
+const order = await razorpay.orders.create({
+  amount: "500",
+  currency: "USD",
+  receipt: "abc123"
+});
+
+User can edit:
+
+✓ amount
+
+✓ currency
+
+✓ receipt
+
+✓ customer details
+
+✓ callback URL
+
+✓ merchant ID
+
+✓ notes
+
+User cannot affect:
+
+✗ database
+
+✗ file system
+
+✗ server runtime
+
+✗ payment engine
+
+===============================================================================
+PHASE 2 — CODE PARSING
+===============================================================================
+
+Tool:
+
+@babel/parser
+
+Purpose:
+
+Convert source code into AST.
+
+Example:
+
+Input:
+
+const order = await razorpay.orders.create({
+  amount: "500",
+  currency: "USD"
+});
+
+AST Generated
+
+↓
+
+Configuration Extracted
+
+Result:
+
+{
+  amount: "500",
+  currency: "USD"
+}
+
+No code execution occurs.
+
+===============================================================================
+PHASE 3 — STATIC VALIDATION
+===============================================================================
+
+Purpose:
+
+Detect syntax errors before analysis.
+
+Example:
+
+User Code:
+
+const order = {
+
+Result:
+
+Syntax Error
+
+Message:
+
+Unexpected token
+
+Line: 1
+
+Column: 15
+
+Simulation Stops.
+
+No AI required.
+
+===============================================================================
+PHASE 4 — GATEWAY VALIDATION
+===============================================================================
+
+Purpose:
+
+Validate extracted configuration against gateway rules.
+
+Example Razorpay Rules:
+
+amount:
+
+- required
+- number
+- minimum 100 paise
+
+currency:
+
+- required
+- INR only
+
+receipt:
+
+- required
+
+callback_url:
+
+- valid URL
+
+===============================================================================
+VALIDATION EXAMPLE
+===============================================================================
+
+User:
+
+{
+  amount: "500",
+  currency: "USD"
+}
+
+Validation Result:
+
+[
+  {
+    field: "amount",
+    expected: "number",
+    received: "string"
+  },
+
+  {
+    field: "currency",
+    expected: "INR",
+    received: "USD"
+  }
+]
+
+Simulation Stops.
+
+===============================================================================
+PHASE 5 — AI REVIEW ENGINE
+===============================================================================
+
+AI is triggered ONLY when validation fails.
+
+Input to AI:
+
+1. User Code
+
+2. Validation Errors
+
+3. Gateway Name
+
+4. Expected Configuration
+
+===============================================================================
+AI PROMPT
+===============================================================================
+
+You are a payment gateway integration reviewer.
+
+Gateway:
+Razorpay
+
+User Code:
+<code>
+
+Validation Errors:
+<errors>
+
+Tasks:
+
+1. Explain each error
+2. Explain why the gateway rejected it
+3. Show corrected code
+4. Teach best practices
+
+===============================================================================
+AI RESPONSE EXAMPLE
+===============================================================================
+
+ERROR #1
+
+Field:
+amount
+
+Received:
+
+"500"
+
+Expected:
+
+50000
+
+Reason:
+
+Razorpay expects amount in paise.
+
+₹500 must be sent as:
+
+50000
+
+because the gateway accepts the smallest currency unit.
+
+-------------------------------------------------------------------------------
+
+ERROR #2
+
+Field:
+currency
+
+Received:
+
+USD
+
+Expected:
+
+INR
+
+Reason:
+
+The PaymentLab Razorpay sandbox supports INR only.
+
+-------------------------------------------------------------------------------
+
+CORRECTED CODE
+
+const order = await razorpay.orders.create({
+  amount: 50000,
+  currency: "INR"
+});
+
+===============================================================================
+PHASE 6 — AUTO-CORRECTION ENGINE
+===============================================================================
+
+After AI generates corrected code:
+
+Store:
+
+{
+  correctedCode,
+  explanation
+}
+
+UI Shows:
+
+❌ Validation Failed
+
+[Explain Error]
+
+[Apply Fix]
+
+[Dismiss]
+
+===============================================================================
+APPLY FIX FLOW
+===============================================================================
+
+User Clicks:
+
+Apply Fix
+
+↓
+
+Editor Replaced
+
+↓
+
+Corrected Code Loaded
+
+↓
+
+User Reviews
+
+↓
+
+Run Again
+
+===============================================================================
+PHASE 7 — REVALIDATION
+===============================================================================
+
+Corrected code is validated again.
+
+If:
+
+No Errors
+
+↓
+
+Simulation Allowed
+
+If:
+
+Errors Still Exist
+
+↓
+
+Repeat AI Review
+
+===============================================================================
+PHASE 8 — PAYMENT EXECUTION
+===============================================================================
+
+ONLY VALID CONFIGURATIONS REACH THIS PHASE
+
+Configuration:
+
+{
+  amount: 50000,
+  currency: "INR"
+}
+
+↓
+
+mockGateway.run()
+
+===============================================================================
+MOCK GATEWAY FLOW
+===============================================================================
+
+Create Transaction
+
+↓
+
+Create Order
+
+↓
+
+Debit Sandbox Balance
+
+↓
+
+Generate Payment ID
+
+↓
+
+Emit Timeline Event
+
+↓
+
+Wait 1.5 Seconds
+
+↓
+
+Generate Webhook
+
+↓
+
+Verify Signature
+
+↓
+
+Mark Success
+
+===============================================================================
+TIMELINE EVENTS
+===============================================================================
+
+Example:
+
+✓ Order Created
+
+↓
+
+✓ Payment Initiated
+
+↓
+
+✓ Balance Debited
+
+↓
+
+✓ Waiting For Webhook
+
+↓
+
+✓ Webhook Received
+
+↓
+
+✓ Signature Verified
+
+↓
+
+✓ Payment Captured
+
+===============================================================================
+PHASE 9 — WEBHOOK ANALYSIS
+===============================================================================
+
+Webhook Generated:
+
+{
+  event: "payment.captured",
+  payment_id: "pay_abc123"
+}
+
+AI Can Explain:
+
+What is payment.captured?
+
+Why webhook exists?
+
+Why signature verification matters?
+
+What happens if verification fails?
+
+Educational benefit:
+
+Users learn production concepts.
+
+===============================================================================
+AI LEARNING FEATURES
+===============================================================================
+
+1. Error Explanation
+
+Example:
+
+Why is amount wrong?
+
+-------------------------------------------------------------------------------
+
+2. Code Correction
+
+Example:
+
+Fix callback URL
+
+-------------------------------------------------------------------------------
+
+3. Security Review
+
+Example:
+
+Missing signature verification
+
+-------------------------------------------------------------------------------
+
+4. Best Practice Review
+
+Example:
+
+Store secret keys in environment variables
+
+-------------------------------------------------------------------------------
+
+5. Gateway Concept Explanation
+
+Example:
+
+What is UTR?
+
+What is orderId?
+
+What is paymentId?
+
+-------------------------------------------------------------------------------
+
+6. Flow Explanation
+
+Example:
+
+Why does webhook arrive after payment?
+
+===============================================================================
+ERROR CATEGORIES
+===============================================================================
+
+CATEGORY 1
+
+Syntax Error
+
+Example:
+
+Missing bracket
+
+-------------------------------------------------------------------------------
+
+CATEGORY 2
+
+Validation Error
+
+Example:
+
+Amount not numeric
+
+-------------------------------------------------------------------------------
+
+CATEGORY 3
+
+Gateway Error
+
+Example:
+
+Unsupported currency
+
+-------------------------------------------------------------------------------
+
+CATEGORY 4
+
+Security Error
+
+Example:
+
+Missing signature verification
+
+-------------------------------------------------------------------------------
+
+CATEGORY 5
+
+Integration Error
+
+Example:
+
+Missing callback URL
+
+===============================================================================
+WHEN AI SHOULD BE CALLED
+===============================================================================
+
+CALL AI:
+
+✓ Validation failure
+
+✓ Syntax failure
+
+✓ Security issue
+
+✓ User clicks "Explain"
+
+✓ User clicks "Fix"
+
+✓ User asks questions
+
+DO NOT CALL AI:
+
+✓ Successful execution
+
+✓ Normal simulations
+
+✓ Balance updates
+
+✓ Webhook verification
+
+✓ Timeline events
+
+Those should remain deterministic backend logic.
+
+===============================================================================
+COST OPTIMIZATION
+===============================================================================
+
+Wrong Code
+      ↓
+Validation Failure
+      ↓
+AI Called
+
+-------------------------------------------------------------------------------
+
+Correct Code
+      ↓
+Validation Success
+      ↓
+Simulation Runs
+
+No AI Call
+
+This reduces AI usage dramatically.
+
+===============================================================================
+FINAL ARCHITECTURE
+===============================================================================
+
+USER CODE
+
+↓
+
+BABEL PARSER
+
+↓
+
+CONFIG EXTRACTOR
+
+↓
+
+VALIDATION ENGINE
+
+↓
+
+ERRORS?
+
+├── YES
+│
+│   AI REVIEWER
+│
+│   AI EXPLAINER
+│
+│   AI CORRECTOR
+│
+│   SHOW FIXES
+│
+│   USER RETRIES
+│
+└── NO
+    │
+    MOCK GATEWAY
+    │
+    TRANSACTION
+    │
+    SSE TIMELINE
+    │
+    WEBHOOK
+    │
+    SIGNATURE VERIFY
+    │
+    SUCCESS
+
+===============================================================================
+CORE RULE
+===============================================================================
+
+AI NEVER EXECUTES CODE.
+
+AI ANALYZES CODE.
+
+AI EXPLAINS CODE.
+
+AI FIXES CODE.
+
+MOCK GATEWAY EXECUTES THE PAYMENT FLOW.
+
+This guarantees security, predictable simulations, educational debugging,
+and production-like learning without allowing broken code to affect the
+sandbox runtime.
+===============================================================================

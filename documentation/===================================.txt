@@ -1,0 +1,722 @@
+===============================================================================
+PAYMENTLAB - TRANSACTION MODEL DOCUMENTATION
+===============================================================================
+
+OVERVIEW
+-------------------------------------------------------------------------------
+
+The Transaction model is the core entity of PaymentLab.
+
+Every payment simulation creates exactly one Transaction document.
+
+A Transaction acts as:
+
+1. Payment Record
+2. Timeline Source
+3. Webhook Storage
+4. Learning Artifact
+5. Replay Source
+
+The transaction document stores everything required to understand how a
+payment moved through the system from initiation to completion.
+
+-------------------------------------------------------------------------------
+PAYMENT FLOW
+-------------------------------------------------------------------------------
+
+User Clicks:
+
+Run Payment
+
+↓
+
+Transaction Created
+
+↓
+
+Order Created
+
+↓
+
+Payment Initiated
+
+↓
+
+Sandbox Balance Debited
+
+↓
+
+Waiting For Webhook
+
+↓
+
+Webhook Received
+
+↓
+
+Signature Verified
+
+↓
+
+Payment Confirmed
+
+Every stage is stored inside the same transaction document.
+
+===============================================================================
+FIELDS
+===============================================================================
+
+-------------------------------------------------------------------------------
+userId
+-------------------------------------------------------------------------------
+
+Type:
+ObjectId
+
+Purpose:
+Identifies the owner of the transaction.
+
+References:
+User Collection
+
+Used For:
+
+- Transaction History
+- User Analytics
+- Balance Tracking
+
+Example:
+
+userId = 664ad9d0b8a9c...
+
+-------------------------------------------------------------------------------
+method
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Allowed Values:
+
+- razorpay
+- upi
+- phonepe
+- cashfree
+- paytm
+- neft
+
+Purpose:
+Identifies which payment gateway sandbox was used.
+
+Example:
+
+method = "razorpay"
+
+-------------------------------------------------------------------------------
+amount
+-------------------------------------------------------------------------------
+
+Type:
+Number
+
+Stored In:
+Paise
+
+Example:
+
+50000
+
+Meaning:
+
+₹500.00
+
+Reason:
+Avoid floating-point precision issues.
+
+-------------------------------------------------------------------------------
+status
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Allowed Values:
+
+- created
+- initiated
+- pending
+- success
+- failed
+- timed_out
+- refunded
+
+Purpose:
+Tracks current transaction state.
+
+Examples:
+
+status = "pending"
+
+status = "success"
+
+-------------------------------------------------------------------------------
+runId
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Purpose:
+Unique identifier for a payment simulation run.
+
+Every click on:
+
+Run Payment
+
+creates a new runId.
+
+Example:
+
+run_8fa12a34
+
+Used For:
+
+- Replay
+- Timeline Tracking
+- SSE Streaming
+- Debugging
+
+-------------------------------------------------------------------------------
+orderId
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Purpose:
+Stores gateway order identifier.
+
+Example:
+
+order_Q2A1B3
+
+Generated During:
+
+Order Creation Step
+
+-------------------------------------------------------------------------------
+paymentId
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Purpose:
+Stores gateway payment identifier.
+
+Example:
+
+pay_XY123ABC
+
+Generated After Successful Payment.
+
+-------------------------------------------------------------------------------
+utr
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Purpose:
+Stores Unique Transaction Reference.
+
+Used By:
+
+- UPI
+- NEFT
+- IMPS-style simulations
+
+Example:
+
+324567891234
+
+-------------------------------------------------------------------------------
+uniqueAmount
+-------------------------------------------------------------------------------
+
+Type:
+Number
+
+Stored In:
+Paise
+
+Purpose:
+Used for unique amount matching.
+
+Example:
+
+Base Amount:
+
+₹100.00
+
+Unique Amount:
+
+₹100.47
+
+Stored As:
+
+10047
+
+Useful in UPI simulations.
+
+-------------------------------------------------------------------------------
+virtualAccount
+-------------------------------------------------------------------------------
+
+Type:
+Object
+
+Purpose:
+Used for NEFT and Bank Transfer simulations.
+
+Fields:
+
+accountNumber
+ifsc
+name
+
+Example:
+
+{
+  accountNumber: "1234567890",
+  ifsc: "PYLB000001",
+  name: "PaymentLab Sandbox"
+}
+
+-------------------------------------------------------------------------------
+gatewayResponse
+-------------------------------------------------------------------------------
+
+Type:
+Mixed
+
+Purpose:
+Stores raw gateway response.
+
+Example:
+
+{
+  order_id: "order_xyz",
+  amount: 50000
+}
+
+Displayed inside:
+
+Code Tab
+
+Helps learners understand gateway responses.
+
+-------------------------------------------------------------------------------
+webhookPayload
+-------------------------------------------------------------------------------
+
+Type:
+Mixed
+
+Purpose:
+Stores raw webhook body exactly as received.
+
+Example:
+
+{
+  event: "payment.captured",
+  payment_id: "pay_xyz"
+}
+
+Displayed inside:
+
+Webhook Log Tab
+
+-------------------------------------------------------------------------------
+webhookSignature
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Purpose:
+Stores generated webhook signature.
+
+Example:
+
+sha256=abc123xyz
+
+Used for signature verification demonstrations.
+
+-------------------------------------------------------------------------------
+signatureVerified
+-------------------------------------------------------------------------------
+
+Type:
+Boolean
+
+Values:
+
+true
+false
+null
+
+Meaning:
+
+true
+  Signature Valid
+
+false
+  Signature Invalid
+
+null
+  Not Verified Yet
+
+-------------------------------------------------------------------------------
+isSimulated
+-------------------------------------------------------------------------------
+
+Type:
+Boolean
+
+Purpose:
+Indicates whether payment was simulated.
+
+true
+  Sandbox Payment
+
+false
+  Real Integration
+
+Current Platform Usage:
+
+Mostly true
+
+-------------------------------------------------------------------------------
+scenario
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Allowed Values:
+
+- success
+- failure
+- timeout
+
+Purpose:
+Determines simulation outcome.
+
+Examples:
+
+scenario = "success"
+
+scenario = "failure"
+
+scenario = "timeout"
+
+Used By:
+
+Mock Gateway Service
+
+-------------------------------------------------------------------------------
+balanceSnapshot
+-------------------------------------------------------------------------------
+
+Type:
+Object
+
+Fields:
+
+before
+after
+
+Purpose:
+Shows balance movement during payment.
+
+Example:
+
+Before:
+₹10,000
+
+Payment:
+₹500
+
+After:
+₹9,500
+
+Stored As:
+
+{
+  before: 1000000,
+  after: 950000
+}
+
+-------------------------------------------------------------------------------
+failureReason
+-------------------------------------------------------------------------------
+
+Type:
+String
+
+Purpose:
+Stores reason for failed transactions.
+
+Examples:
+
+USER_CANCELLED
+
+NETWORK_ERROR
+
+INSUFFICIENT_FUNDS
+
+TIMEOUT
+
+Only populated when status = failed.
+
+===============================================================================
+TIMELINE
+===============================================================================
+
+Purpose:
+
+Stores every event that occurs during the payment lifecycle.
+
+This is the most important field in the transaction model.
+
+Drives:
+
+- Run & Watch Tab
+- SSE Streaming
+- Timeline Replay
+
+Example:
+
+[
+  {
+    event: "order_created",
+    label: "Order Created",
+    status: "success"
+  }
+]
+
+===============================================================================
+TIMELINE STEP STRUCTURE
+===============================================================================
+
+-------------------------------------------------------------------------------
+event
+-------------------------------------------------------------------------------
+
+Machine-readable event key.
+
+Examples:
+
+order_created
+
+payment_initiated
+
+webhook_received
+
+signature_verified
+
+payment_confirmed
+
+-------------------------------------------------------------------------------
+attempt
+-------------------------------------------------------------------------------
+
+Attempt number.
+
+Examples:
+
+Attempt #1
+
+Attempt #2
+
+Useful for retries and future enhancements.
+
+-------------------------------------------------------------------------------
+label
+-------------------------------------------------------------------------------
+
+Human-readable description.
+
+Example:
+
+Payment initiated successfully
+
+-------------------------------------------------------------------------------
+status
+-------------------------------------------------------------------------------
+
+Allowed Values:
+
+success
+
+pending
+
+failed
+
+info
+
+Used by timeline badges.
+
+-------------------------------------------------------------------------------
+data
+-------------------------------------------------------------------------------
+
+Optional JSON payload.
+
+Example:
+
+{
+  orderId: "order_xyz"
+}
+
+Displayed as expandable JSON inside timeline.
+
+-------------------------------------------------------------------------------
+timestamp
+-------------------------------------------------------------------------------
+
+Date and time when event occurred.
+
+Example:
+
+2026-06-23T10:20:15Z
+
+Used for event ordering.
+
+===============================================================================
+CODE SNAPSHOT
+===============================================================================
+
+Purpose:
+
+Stores the exact frontend and backend code used when the user executed
+the payment simulation.
+
+Structure:
+
+{
+  frontend: "...",
+  backend: "..."
+}
+
+Benefits:
+
+Shows:
+
+Code
+ ↓
+ Execution
+ ↓
+ Result
+
+This is a major learning feature.
+
+===============================================================================
+TIMESTAMP FIELDS
+===============================================================================
+
+confirmedAt
+
+Stores when payment became successful.
+
+-------------------------------------------------------------------------------
+
+failedAt
+
+Stores when payment failed.
+
+-------------------------------------------------------------------------------
+
+timedOutAt
+
+Stores when timeout occurred.
+
+Only populated when:
+
+status = timed_out
+
+===============================================================================
+MODEL METHODS
+===============================================================================
+
+pushStep()
+
+Purpose:
+
+Adds timeline events.
+
+Example:
+
+await txn.pushStep(
+  "order_created",
+  "Order Created",
+  "success",
+  { orderId }
+);
+
+-------------------------------------------------------------------------------
+
+markSuccess()
+
+Updates:
+
+- status
+- paymentId
+- webhookPayload
+- confirmedAt
+- timeline
+
+-------------------------------------------------------------------------------
+
+markFailed()
+
+Updates:
+
+- status
+- failureReason
+- webhookPayload
+- failedAt
+- timeline
+
+-------------------------------------------------------------------------------
+
+markTimedOut()
+
+Updates:
+
+- status
+- timedOutAt
+- timeline
+
+===============================================================================
+SUMMARY
+===============================================================================
+
+The Transaction model is the single source of truth for:
+
+✓ Payment Lifecycle
+
+✓ Sandbox Balance Movement
+
+✓ Timeline Streaming
+
+✓ Webhook Inspection
+
+✓ Code-to-Result Learning
+
+✓ Transaction History
+
+✓ Payment Replay
+
+Every payment simulation revolves around this model.

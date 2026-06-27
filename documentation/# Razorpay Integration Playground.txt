@@ -1,0 +1,331 @@
+// # Razorpay Integration Playground
+
+// ## Why This File Exists
+
+// This file is part of the Payment Gateway Learning Sandbox.
+
+// The purpose is not simply to process payments. Its goal is to help developers understand:
+
+// * How Razorpay integrations work.
+// * What data is required before creating an order.
+// * What configuration is sent to Razorpay Checkout.
+// * How payment verification works.
+// * What webhook payloads look like.
+// * What happens at each stage of the payment lifecycle.
+
+// This file acts as the educational backbone for the Razorpay playground.
+
+// ---
+
+// # What Users Learn From This Module
+
+// When developers open the Razorpay section of the platform, they should understand:
+
+// ### 1. Order Creation
+
+// Before a customer can pay, a Razorpay Order must be created.
+
+// The platform demonstrates:
+
+// ```text
+// Merchant
+//    ↓
+// Create Order
+//    ↓
+// Razorpay Generates Order ID
+//    ↓
+// Frontend Opens Checkout
+// ```
+
+// Users can inspect the exact payload sent to Razorpay and understand why each field is required.
+
+// ---
+
+// ### 2. Checkout Configuration
+
+// Many developers know how to copy Razorpay code but don't understand what the options object actually does.
+
+// This module shows:
+
+// ```javascript
+// {
+//   key,
+//   amount,
+//   currency,
+//   order_id,
+//   prefill
+// }
+// ```
+
+// and explains:
+
+// | Field    | Purpose               |
+// | -------- | --------------------- |
+// | key      | Merchant public key   |
+// | amount   | Payment amount        |
+// | currency | Payment currency      |
+// | order_id | Unique Razorpay order |
+// | prefill  | Customer details      |
+
+// The user can edit these values and immediately see their effect.
+
+// ---
+
+// ### 3. Payment Lifecycle
+
+// The sandbox visualizes the complete payment flow.
+
+// ```text
+// Create Order
+//      ↓
+// Open Checkout
+//      ↓
+// User Pays
+//      ↓
+// Payment Success
+//      ↓
+// Verify Signature
+//      ↓
+// Receive Webhook
+//      ↓
+// Update Database
+// ```
+
+// Instead of reading documentation, users watch the flow happen live.
+
+// ---
+
+// ### 4. Signature Verification
+
+// One of the most misunderstood parts of Razorpay integration is payment verification.
+
+// Many beginners trust the frontend response and immediately mark payments as successful.
+
+// This module demonstrates why that is unsafe.
+
+// Users learn:
+
+// ```text
+// Frontend Success
+//        ≠
+// Verified Payment
+// ```
+
+// The platform shows:
+
+// ```text
+// order_id + payment_id
+//         ↓
+// HMAC SHA256
+//         ↓
+// Compare Signature
+//         ↓
+// Verify Authenticity
+// ```
+
+// The verification process becomes visual and easier to understand.
+
+// ---
+
+// ### 5. Webhook Architecture
+
+// Most developers struggle with webhooks because they are asynchronous.
+
+// This sandbox explains:
+
+// ```text
+// Customer Pays
+//       ↓
+// Razorpay Processes Payment
+//       ↓
+// Webhook Sent To Server
+//       ↓
+// Server Verifies Event
+//       ↓
+// Database Updated
+// ```
+
+// Users can inspect actual webhook structures and understand:
+
+// * Event names
+// * Payload formats
+// * Payment entities
+// * Status transitions
+
+// ---
+
+// # Educational Features Provided By This File
+
+// ## Configuration Validation
+
+// The platform validates:
+
+// * Amount
+// * Currency
+// * Receipt
+
+// This teaches developers what Razorpay expects before an order can be created.
+
+// Instead of seeing a generic API failure, they receive meaningful explanations.
+
+// ---
+
+// ## Order Creation Simulation
+
+// Users learn:
+
+// * What an order is.
+// * Why it exists.
+// * Which fields Razorpay generates.
+// * How the frontend uses the order ID.
+
+// The sandbox visualizes the request and response.
+
+// ---
+
+// ## Checkout Preview
+
+// The generated checkout payload allows the platform to show:
+
+// ```text
+// How Razorpay Checkout Would Appear
+// ```
+
+// before a real payment is attempted.
+
+// This helps users understand the connection between backend-generated data and frontend checkout behavior.
+
+// ---
+
+// ## Signature Verification Demonstration
+
+// The sandbox exposes:
+
+// ```javascript
+// order_id + payment_id
+// ```
+
+// and shows how the final signature is produced.
+
+// Developers can see:
+
+// * Input values
+// * Generated hash
+// * Received signature
+// * Verification result
+
+// This transforms a complex security concept into an interactive lesson.
+
+// ---
+
+// ## Webhook Viewer
+
+// The generated webhook examples help users learn:
+
+// ### What Razorpay Sends
+
+// ```json
+// {
+//   "event": "payment.captured"
+// }
+// ```
+
+// ### When It Is Sent
+
+// After payment completion.
+
+// ### Why It Matters
+
+// Because webhooks are the source of truth for payment status updates.
+
+// ---
+
+// ## Timeline Generator
+
+// The timeline system teaches the real payment lifecycle.
+
+// Example:
+
+// ```text
+// ✓ Order Created
+
+// ✓ Checkout Opened
+
+// ✓ Payment Successful
+
+// ✓ Signature Verified
+
+// ✓ Webhook Received
+
+// ✓ Database Updated
+
+// ✓ Payment Captured
+// ```
+
+// Instead of reading a sequence diagram, users watch it execute.
+
+// ---
+
+// # How This Fits Into The Learning Platform
+
+// This file powers three major sections of the Razorpay playground.
+
+// ## Code Tab
+
+// Shows:
+
+// * Order creation code
+// * Checkout configuration code
+// * Signature verification code
+
+// Users can edit and experiment.
+
+// ---
+
+// ## Run & Watch Tab
+
+// Shows:
+
+// * Timeline events
+// * Payment lifecycle
+// * State transitions
+
+// Users see exactly what happens after clicking Pay.
+
+// ---
+
+// ## Webhook Log Tab
+
+// Shows:
+
+// * Incoming webhook payloads
+// * Event structures
+// * Raw JSON
+
+// Users learn how backend systems receive payment updates.
+
+// ---
+
+// # Learning Outcome
+
+// After completing the Razorpay playground, a developer should understand:
+
+// ✓ How Razorpay Orders work
+
+// ✓ How Checkout is configured
+
+// ✓ How payments are verified
+
+// ✓ Why signatures matter
+
+// ✓ How webhooks work
+
+// ✓ What happens after payment success
+
+// ✓ How backend and frontend communicate
+
+// ✓ The complete Razorpay payment lifecycle
+
+// The objective is not to teach users how to copy code.
+
+// The objective is to help them understand the complete payment ecosystem so they can confidently integrate Razorpay into real-world applications.
