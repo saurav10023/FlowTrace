@@ -526,3 +526,17 @@ This project is intended for educational and learning purposes.
 # 👨‍💻 Author
 
 Designed and developed to make backend workflows transparent, observable, and easier to understand through real-world execution and interactive visualization.
+
+Here's my understanding of the execution flow, based on the README:
+When a user wants to run something, they first pick a Module (currently only "Payment Gateway Integrations" exists, with providers like Razorpay, Cashfree, Stripe, PhonePe), then pick a Flow within that module (e.g., Standard Checkout, Payment Links, Refunds, Webhooks, Subscription Payments). Each Flow has documentation and code snippets attached, but those are purely educational and never get executed — that's a separate concern from the actual runtime.
+To actually run the flow, the user provides Runtime variables (things the executor needs to do real work, like amount, currency, customer details, etc., depending on the flow).
+Once they hit Execute, the backend creates an Execution record (your Transaction model) tied to that user, module, and flow. This is the central object everything else hangs off of.
+From there, the system looks up the right backend implementation via the Executor Registry — essentially a lookup table mapping (Module + Flow + Provider) to a specific Flow Executor function. That executor doesn't talk to Razorpay/Stripe/etc. directly — it goes through a Provider Adapter, which normalizes the different SDKs/APIs into a consistent interface so the executor logic doesn't care which gateway is being used underneath.
+As the Flow Executor runs, it does two things in parallel:
+
+Emits TimelineEvents — high-level business-state steps like "Create Order" → "Open Checkout" → "Wait For Payment" → "Verify Payment" → "Completed." These represent meaningful stages, not raw API calls.
+Logs every outgoing API call as an ApiLog — capturing endpoint, method, headers, body, response, status code, duration, and errors for every interaction with the external gateway.
+
+Some flows can't complete in one shot — they involve waiting on something external, like a payment webhook. In that case, execution pauses at a "Wait For X Event" timeline state. When the external service calls back (e.g., a payment confirmation webhook), that incoming payload is captured as an EventLog (with headers, payload, signature, and verification status). This event then resumes the paused execution, which continues forward — possibly making more API calls, emitting more timeline events — until it reaches a final state like "Completed" or "Failed."
+So an Execution is really a parent record with three children logging different facets of what happened: TimelineEvent (business narrative), ApiLog (outbound HTTP), EventLog (inbound webhooks/events) — and the documentation layer (Module/Flow/CodeSnippet) stays completely decoupled from this runtime layer, only referenced by ID.
+Let me know if that matches your mental model, or if I've misread any part of it before we get into the controller.
